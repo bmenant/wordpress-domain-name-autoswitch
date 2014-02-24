@@ -1,8 +1,8 @@
 <?php
 /**
- ** Plugin Name: Domain Name Autoswitch for APE
+ ** Plugin Name: Domain Name Autoswitch
  ** Description: Display the setted post for setted domain name (require Advanced Custom Fields plugin).
- ** Version: 1.1
+ ** Version: 1.2
  ** Author: Benjamin Menant <dev@menant-benjamin.fr>
  ** Author URI: http://menant-benjamin.fr/
  ** License: WTFPL
@@ -25,21 +25,6 @@
  *****************************************************************************
  **
  **/
-
-//
-// Configuration
-//
-
-// The system name for domain name field (see custom field plugin settings)
-$domain_name_autoswitch_acf_field_id = 'domain_name';
-
-// The categories ID used to select affected posts
-$domain_name_autoswitch_categories_id = array(2);
-
-
-//
-// CODE SHOULD NOT BE EDITED BEYOND THIS LINE
-//
 
 /**
  * Manages domain name autoswitch for corresponding content:
@@ -72,6 +57,12 @@ class Domain_Name_Autoswitch {
     private $_categories_ID = array();
 
     /**
+     * The ID of the matched post types
+     * @var String
+     */
+    private $_post_types_ID = array();
+
+    /**
      * The ID of the domain name field
      * @var String
      */
@@ -83,13 +74,20 @@ class Domain_Name_Autoswitch {
      * @param String $field_ID ID of the field used to catch domain name value for each content
      * @return void
      */
-    public function __construct ($categories_ID = array(), $field_ID = null) {
+    public function __construct () {
+        // Config file
+        include_once(plugin_dir_path(__FILE__) . 'domain-name-autoswitch-config.php');
+
         // Populate private properties
-        $this->_categories_ID = $categories_ID;
-        $this->_field_ID = $field_ID;
+        $this->_categories_ID = $dnas_categories_ID;
+        $this->_post_types_ID = $dnas_post_types_ID;
+        $this->_field_ID = 'dnas-domain-name';
 
         // Get domain name request
         $this->domain_name = $_SERVER['SERVER_NAME'];
+
+        // Add a custom post type.
+        add_action('init', array($this, "create_dnas_custom_fields"));
 
         // Message error handler
         add_action('admin_notices', array($this, 'error_notice'));
@@ -104,29 +102,42 @@ class Domain_Name_Autoswitch {
   		if (null == self::$instance) {
   			self::$instance = new self;
   		}
-
   		return self::$instance;
   	}
 
     /**
-     * Look for content which corresponds to the domain name request
+     * Look for content which corresponds to the domain name request.
+     * Will check for both Post Types and Categories ID.
      * @return Integer|False The corresponding content ID, False if corresponding content not found
      */
     private function _get_content_ID_by_domain_name () {
-        if (!empty($this->_categories_ID)) {
+        $categories = !empty($this->_categories_ID)
+                    ? sprintf('term_taxonomy_id IN ( %s )', implode(', ', $this->_categories_ID))
+                    : null;
+
+        if (!empty($this->_post_types_ID)) {
+            $post_types = 'post_type IN ( ';
+            foreach ($this->_post_types_ID as $post_type) {
+                if (isset($i)) $post_types .= ', ';
+                else $i = true;
+                $post_types .= "'$post_type'";
+            }
+            $post_types .= ' )';
+        }
+        else $post_types = null;
+
+        if ($categories || $post_types) {
             global $wpdb;
+            $where_categories = "post_id IN ( SELECT object_id FROM {$wpdb->term_relationships} WHERE $categories )";
+            $where_post_types = "post_id IN ( SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish' AND $post_types )";
             $dn = esc_sql($this->domain_name);
-            $categories = implode(', ', $this->_categories_ID);
-            $sql = "SELECT post_id AS id
-                    FROM {$wpdb->postmeta}
-                    WHERE post_id IN (
-                        SELECT object_id
-                        FROM {$wpdb->term_relationships}
-                        WHERE term_taxonomy_id IN ( $categories )
-                    )
-                    AND meta_key = '{$this->_field_ID}'
-                    AND meta_value = '$dn'
-                    LIMIT 1";
+
+            $sql = "SELECT post_id AS id FROM {$wpdb->postmeta} WHERE ";
+            if ($categories && $post_types) $sql .= "( $where_categories OR $where_post_types )";
+            elseif ($categories) $sql .= $where_categories;
+            elseif ($post_types) $sql .= $where_post_types;
+            $sql .= " AND meta_key = '{$this->_field_ID}' AND meta_value = '$dn' LIMIT 1";
+
             $id_from_db = $wpdb->get_row($sql);
             if (!empty($id_from_db) && !empty($id_from_db->id)) {
                 $this->content_ID = $id_from_db->id;
@@ -134,7 +145,7 @@ class Domain_Name_Autoswitch {
             }
         }
         elseif (is_admin()) {
-            $this->error_notice('Please edit plugin file to set at least one post type.');
+            $this->error_notice(__('Please check the plugin configuration file.', 'dnas'));
         }
         return false;
     }
@@ -159,6 +170,70 @@ class Domain_Name_Autoswitch {
             $request = array('p' => $this->content_ID);
         }
         return $request;
+    }
+
+    /**
+     * Add custom fields to specified post types, using Advanced
+     * Custom Fields plugin.
+     */
+    public function create_dnas_custom_fields() {
+        if (function_exists("register_field_group")
+        && (!empty($this->_post_types_ID) || !empty($this->_categories_ID))) {
+            $custom_field = array (
+                'id' => 'acf_dnas-domain-name',
+                'title' => __('Domain Name', 'dnas'),
+                'fields' => array (
+                    array (
+                        'key' => 'field_530b5a92bbd22',
+                        'label' => __('Dedicated Domain Name', 'dnas'),
+                        'name' => $this->_field_ID,
+                        'type' => 'text',
+                        'instructions' => __('The domain name on which this post should be dislpayed as the front page.<br /> Do <strong>not</strong> mention the protocol (i.e.: <code style="margin:0 1px;padding:0 2px;font-size:inherit">http://</code>) <strong>nor</strong> any trailing slash (i.e.: <code style="margin:0 1px;padding:0 2px;font-size:inherit">/</code>).', 'dnas'),
+                        'default_value' => '',
+                        'placeholder' => 'ape.example.org',
+                        'prepend' => '',
+                        'append' => '',
+                        'formatting' => 'none',
+                        'maxlength' => '',
+                    ),
+                ),
+                'options' => array (
+                    'position' => 'side',
+                    'layout' => 'default',
+                    'hide_on_screen' => array (
+                    ),
+                ),
+                'menu_order' => 0,
+                'location' => array(),
+            );
+            $i = 0;
+            if (!empty($this->_post_types_ID)) {
+                foreach($this->_post_types_ID as $post_type) {
+                    $custom_field['location'][][] = array (
+                        'param' => 'post_type',
+                        'operator' => '==',
+                        'value' => $post_type,
+                        'order_no' => 0,
+                        'group_no' => $i++,
+                    );
+                }
+            }
+            if (!empty($this->_categories_ID)) {
+                foreach($this->_categories_ID as $categorie) {
+                    $custom_field['location'][][] = array (
+                        'param' => 'post_category',
+                        'operator' => '==',
+                        'value' => $categorie,
+                        'order_no' => 0,
+                        'group_no' => $i++,
+                    );
+                }
+            }
+            register_field_group($custom_field);
+        }
+        elseif (is_admin()) {
+            $this->error_notice(__('<a href="http://www.advancedcustomfields.com/">Advanced Custom Fields</a> is required and must be activated to manage domain names.', 'dnas'));
+        }
     }
 
     /**
@@ -191,4 +266,5 @@ $ape_dnas = ape_dnas();
 add_filter('pre_option_home', array($ape_dnas, 'baseurl_handler'));
 add_filter('pre_option_siteurl', array($ape_dnas, 'baseurl_handler'));
 add_filter('request', array($ape_dnas, 'request_handler'));
+// add_action('parse_request', array($ape_dnas, 'request_handler'));
 
