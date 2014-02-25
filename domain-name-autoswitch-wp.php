@@ -153,7 +153,6 @@ class Domain_Name_Autoswitch {
     /**
      * Change the 'home' and 'siteurl' WP option to the requested domain name
      * @todo Do not work with base site URL like http://example.com/basepath/
-     * @todo Do not work with HTTPS…
      * @return String  The base URL
      */
     public function baseurl_handler () {
@@ -161,15 +160,18 @@ class Domain_Name_Autoswitch {
     }
 
     /**
-     * Change the request to load the correct post
-     * @return String  The base URL
+     * Change the query to load the correct post
      */
-    public function request_handler ($request) {
-        if (empty($request)
+    public function query_handler($query) {
+        if (is_home()
+        &&  $query->is_main_query()
         &&  $this->_get_content_ID_by_domain_name()) {
-            $request = array('p' => $this->content_ID);
+            $query->set('post_type', get_post_field('post_type', $this->content_ID));
+            $query->set('p', $this->content_ID);
+            $query->is_single = true;
+            $query->is_singular = true;
+            $query->is_home = false;
         }
-        return $request;
     }
 
     /**
@@ -253,18 +255,17 @@ class Domain_Name_Autoswitch {
     }
 }
 
-function ape_dnas() {
-    global $ape_dnas;
-    $ape_dnas = Domain_Name_Autoswitch::get_instance();
-    return $ape_dnas;
+function dnas() {
+    global $dnas;
+    $dnas = Domain_Name_Autoswitch::get_instance();
+    return $dnas;
 }
 
 // Initialize
-$ape_dnas = ape_dnas();
+$dnas = dnas();
 
 // Filter hooks
-add_filter('pre_option_home', array($ape_dnas, 'baseurl_handler'));
-add_filter('pre_option_siteurl', array($ape_dnas, 'baseurl_handler'));
-add_filter('request', array($ape_dnas, 'request_handler'));
-// add_action('parse_request', array($ape_dnas, 'request_handler'));
+add_filter('pre_option_home', array($dnas, 'baseurl_handler'));
+add_filter('pre_option_siteurl', array($dnas, 'baseurl_handler'));
+add_action('pre_get_posts', array($dnas, 'query_handler'));
 
