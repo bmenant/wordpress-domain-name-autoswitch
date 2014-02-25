@@ -32,17 +32,23 @@
  */
 class Domain_Name_Autoswitch {
 
-	/**
-	 * Instance of this class.
-	 * @var      object
-	 */
-	protected static $instance = null;
+    /**
+     * Instance of this class.
+     * @var      object
+     */
+    protected static $instance = null;
 
     /**
      * The ID of the corresponding content
      * @var Integer
      */
     public $content_ID;
+
+    /**
+     * The Post Type of the corresponding content
+     * @var String
+     */
+    public $post_type;
 
     /**
      * The domain name request
@@ -93,28 +99,35 @@ class Domain_Name_Autoswitch {
         add_action('admin_notices', array($this, 'error_notice'));
     }
 
-  	/**
-  	 * Return an instance of this class.
-  	 * @return    object    A single instance of this class.
-  	 */
-  	public static function get_instance() {
-  		// If the single instance hasn"t been set, set it now.
-  		if (null == self::$instance) {
-  			self::$instance = new self;
-  		}
-  		return self::$instance;
-  	}
+    /**
+     * Return an instance of this class.
+     * @return    object    A single instance of this class.
+     */
+    public static function get_instance() {
+        // If the single instance hasn"t been set, set it now.
+        if (null == self::$instance) {
+        self::$instance = new self;
+        }
+        return self::$instance;
+    }
 
     /**
-     * Look for content which corresponds to the domain name request.
-     * Will check for both Post Types and Categories ID.
-     * @return Integer|False The corresponding content ID, False if corresponding content not found
+     * Prepare Categories SQL WHERE
+     * @return  String  The SQL WHERE clause,
+     *          |null   or null if empty.
      */
-    private function _get_content_ID_by_domain_name () {
-        $categories = !empty($this->_categories_ID)
-                    ? sprintf('term_taxonomy_id IN ( %s )', implode(', ', $this->_categories_ID))
-                    : null;
+    private function _prepare_categories_sql_where () {
+        return  !empty($this->_categories_ID)
+                ? sprintf('term_taxonomy_id IN ( %s )', implode(', ', $this->_categories_ID))
+                : null;
+    }
 
+    /**
+     * Prepare Post Types SQL WHERE
+     * @return  String  The SQL WHERE clause,
+     *          |null   or null if empty.
+     */
+    private function _prepare_post_types_sql_where () {
         if (!empty($this->_post_types_ID)) {
             $post_types = 'post_type IN ( ';
             foreach ($this->_post_types_ID as $post_type) {
@@ -125,22 +138,39 @@ class Domain_Name_Autoswitch {
             $post_types .= ' )';
         }
         else $post_types = null;
+        return $post_types;
+    }
+
+    /**
+     * Look for content which corresponds to the domain name request.
+     * Will check for both Post Types and Categories ID.
+     * @return Integer|False The corresponding content ID, False if corresponding content not found
+     */
+    private function _get_content_ID_by_domain_name () {
+        $categories = $this->_prepare_categories_sql_where();
+        $post_types = $this->_prepare_post_types_sql_where();
 
         if ($categories || $post_types) {
             global $wpdb;
-            $where_categories = "post_id IN ( SELECT object_id FROM {$wpdb->term_relationships} WHERE $categories )";
-            $where_post_types = "post_id IN ( SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish' AND $post_types )";
+            $where_categories = "id IN ( SELECT object_id FROM {$wpdb->term_relationships} WHERE $categories )";
             $dn = esc_sql($this->domain_name);
 
-            $sql = "SELECT post_id AS id FROM {$wpdb->postmeta} WHERE ";
-            if ($categories && $post_types) $sql .= "( $where_categories OR $where_post_types )";
-            elseif ($categories) $sql .= $where_categories;
-            elseif ($post_types) $sql .= $where_post_types;
-            $sql .= " AND meta_key = '{$this->_field_ID}' AND meta_value = '$dn' LIMIT 1";
+            $sql = "SELECT pm.post_id AS id, p.post_type AS post_type FROM {$wpdb->postmeta} AS pm ";
+            $sql.= "JOIN {$wpdb->posts} AS p ON id = p.ID ";
+            $sql.= "WHERE ";
+            if ($categories && $post_types)
+                $sql.= "( $where_categories OR $post_types )";
+            elseif ($categories)
+                $sql.= $where_categories;
+            elseif ($post_types)
+                $sql.= $post_types;
+            $sql.= " AND pm.meta_key = '{$this->_field_ID}' AND pm.meta_value = '$dn'";
+            $sql.= " AND p.post_status = 'publish' LIMIT 1";
 
-            $id_from_db = $wpdb->get_row($sql);
-            if (!empty($id_from_db) && !empty($id_from_db->id)) {
-                $this->content_ID = $id_from_db->id;
+            $row = $wpdb->get_row($sql);
+            if (!empty($row) && !empty($row->id)) {
+                $this->content_ID = $row->id;
+                $this->post_type = $row->post_type;
                 return $this->content_ID;
             }
         }
@@ -160,13 +190,13 @@ class Domain_Name_Autoswitch {
     }
 
     /**
-     * Change the query to load the correct post
+     * Change the query to load the correct post, with the correct template.
      */
     public function query_handler($query) {
         if (is_home()
         &&  $query->is_main_query()
         &&  $this->_get_content_ID_by_domain_name()) {
-            $query->set('post_type', get_post_field('post_type', $this->content_ID));
+            $query->set('post_type', $this->post_type);
             $query->set('p', $this->content_ID);
             $query->is_single = true;
             $query->is_singular = true;
