@@ -1,6 +1,7 @@
 === Domain Name Autoswitch ===
 Contributors: bmenant
 Tags: Multi Domain Name, Front Page
+Requires at least: 3.3.x
 Tested up to: 3.8.1
 Stable tag: v1.2
 License: WTFPL
