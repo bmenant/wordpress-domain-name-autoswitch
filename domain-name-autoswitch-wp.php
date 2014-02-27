@@ -42,7 +42,7 @@ class Domain_Name_Autoswitch {
      * The ID of the corresponding content
      * @var Integer
      */
-    public $content_ID;
+    public $post_ID;
 
     /**
      * The Post Type of the corresponding content
@@ -146,7 +146,7 @@ class Domain_Name_Autoswitch {
      * Will check for both Post Types and Categories ID.
      * @return Integer|False The corresponding content ID, False if corresponding content not found
      */
-    private function _get_content_ID_by_domain_name () {
+    private function _get_post_ID_by_domain_name () {
         $categories = $this->_prepare_categories_sql_where();
         $post_types = $this->_prepare_post_types_sql_where();
 
@@ -169,15 +169,27 @@ class Domain_Name_Autoswitch {
 
             $row = $wpdb->get_row($sql);
             if (!empty($row) && !empty($row->id)) {
-                $this->content_ID = $row->id;
+                $this->post_ID = $row->id;
                 $this->post_type = $row->post_type;
-                return $this->content_ID;
+                return $this->post_ID;
             }
         }
         elseif (is_admin()) {
             $this->error_notice(__('Please check the plugin configuration file.', 'dnas'));
         }
         return false;
+    }
+
+    /**
+     * Get the post ID from the requested domain name.
+     * Do not perform any redirection nor query alteration.
+     * @return  Integer The Post ID.
+     */
+    public function get_post_ID() {
+        if (empty($this->post_ID)) {
+            $this->_get_post_ID_by_domain_name();
+        }
+        return $this->post_ID;
     }
 
     /**
@@ -195,9 +207,9 @@ class Domain_Name_Autoswitch {
     public function query_handler($query) {
         if (is_home()
         &&  $query->is_main_query()
-        &&  $this->_get_content_ID_by_domain_name()) {
+        &&  $this->_get_post_ID_by_domain_name()) {
             $query->set('post_type', $this->post_type);
-            $query->set('p', $this->content_ID);
+            $query->set('p', $this->post_ID);
             $query->is_single = true;
             $query->is_singular = true;
             $query->is_home = false;
