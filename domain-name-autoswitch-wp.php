@@ -93,7 +93,16 @@ class Domain_Name_Autoswitch {
         $this->domain_name = $_SERVER['SERVER_NAME'];
 
         // Add a custom post type.
-        add_action('init', array($this, "create_dnas_custom_fields"));
+        add_action('init', array($this, 'create_dnas_custom_fields'));
+
+        // Alter the query.
+        add_action('pre_get_posts', array($this, 'query_handler'));
+
+        // Filter hooks: alter URL getting.
+        add_filter('pre_option_home', array($this, 'baseurl_handler'));
+        add_filter('pre_option_siteurl', array($this, 'baseurl_handler'));
+        add_filter('post_type_link', array($this, 'permalink_handler'), 10, 2);
+        add_filter('post_link', array($this, 'permalink_handler'), 10, 2);
 
         // Message error handler
         add_action('admin_notices', array($this, 'error_notice'));
@@ -193,12 +202,23 @@ class Domain_Name_Autoswitch {
     }
 
     /**
+     * Change any permalink value with the correct one.
+     * @return  string  The filtered URL.
+     */
+    public function permalink_handler($url, $post = null) {
+        if ($this->get_post_ID() == $post->ID) {
+            return "http://$this->domain_name/";
+        }
+        return $url;
+    }
+
+    /**
      * Change the 'home' and 'siteurl' WP option to the requested domain name
      * @todo Do not work with base site URL like http://example.com/basepath/
      * @return String  The base URL
      */
     public function baseurl_handler () {
-        return 'http://' . $this->domain_name;
+        return "http://$this->domain_name";
     }
 
     /**
@@ -297,17 +317,11 @@ class Domain_Name_Autoswitch {
     }
 }
 
+// Initialize
 function dnas() {
     global $dnas;
     $dnas = Domain_Name_Autoswitch::get_instance();
     return $dnas;
 }
-
-// Initialize
 $dnas = dnas();
-
-// Filter hooks
-add_filter('pre_option_home', array($dnas, 'baseurl_handler'));
-add_filter('pre_option_siteurl', array($dnas, 'baseurl_handler'));
-add_action('pre_get_posts', array($dnas, 'query_handler'));
 
