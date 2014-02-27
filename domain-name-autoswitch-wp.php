@@ -80,7 +80,7 @@ class Domain_Name_Autoswitch {
      * @param String $field_ID ID of the field used to catch domain name value for each content
      * @return void
      */
-    public function __construct () {
+    private function __construct () {
         // Config file
         include_once(plugin_dir_path(__FILE__) . 'domain-name-autoswitch-config.php');
 
