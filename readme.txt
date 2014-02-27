@@ -3,7 +3,7 @@ Contributors: bmenant
 Tags: Multi Domain Name, Front Page
 Requires at least: 3.3.x
 Tested up to: 3.8.1
-Stable tag: v1.2
+Stable tag: v1.2.1
 License: WTFPL
 License URI: http://www.wtfpl.net/
 
