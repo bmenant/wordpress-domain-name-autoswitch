@@ -2,12 +2,13 @@
 /**
  ** Plugin Name: Domain Name Autoswitch
  ** Description: Display the setted post for setted domain name (require Advanced Custom Fields plugin).
- ** Version: 1.2.1
+ ** Version: 1.2.2
  ** Author: Benjamin Menant <dev@menant-benjamin.fr>
  ** Author URI: http://menant-benjamin.fr/
  ** License: WTFPL
  **
  *****************************************************************************
+ **                                                                         **
  **            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE                  **
  **                    Version 2, December 2004                             **
  **                                                                         **
@@ -23,7 +24,14 @@
  **  0. You just DO WHAT THE FUCK YOU WANT TO.                              **
  **                                                                         **
  *****************************************************************************
- **
+ **                                                                         **
+ ** This program is free software. It comes without any warranty, to        **
+ ** the extent permitted by applicable law. You can redistribute it         **
+ ** and/or modify it under the terms of the Do What The Fuck You Want       **
+ ** To Public License, Version 2, as published by Sam Hocevar. See          **
+ ** http://www.wtfpl.net/ for more details.                                 **
+ **                                                                         **
+ *****************************************************************************
  **/
 
 /**
@@ -317,7 +325,7 @@ class Domain_Name_Autoswitch {
     }
 }
 
-// Initialize
+// Initialize.
 function dnas() {
     global $dnas;
     $dnas = Domain_Name_Autoswitch::get_instance();
@@ -325,3 +333,8 @@ function dnas() {
 }
 $dnas = dnas();
 
+// Get the post ID related to the current domain name.
+function dnas_get_post_ID() {
+    global $dnas;
+    return $dnas->get_post_ID();
+}
