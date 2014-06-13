@@ -22,12 +22,14 @@ For instance, if you would like to display URL of the fake home page:
 You can check the plugin development on [github](https://github.com/bmenant/wordpress-domain-name-autoswitch).
 
 **Pros:**
+
 *   since the plugin does not modify nor use your `.htaccess` file,
     it works with every permalink formats.
 *   allow you to manage your domain names directly through your
     post edit forms.
 
 **Cons:**
+
 *   since it hacks the query variables, some template tags like `is_home()`
     could not work as expected if a dedicated domain name is triggered.
 *   be aware there is no conflict support: you can fill the same domain
