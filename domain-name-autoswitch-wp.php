@@ -44,7 +44,7 @@ class Domain_Name_Autoswitch {
      * Instance of this class.
      * @var      object
      */
-    protected static $instance = null;
+    protected static $_instance = null;
 
     /**
      * The ID of the corresponding content
@@ -122,10 +122,10 @@ class Domain_Name_Autoswitch {
      */
     public static function get_instance() {
         // If the single instance hasn"t been set, set it now.
-        if (null == self::$instance) {
-        self::$instance = new self;
+        if (null == self::$_instance) {
+        self::$_instance = new self;
         }
-        return self::$instance;
+        return self::$_instance;
     }
 
     /**
@@ -172,8 +172,8 @@ class Domain_Name_Autoswitch {
             $where_categories = "id IN ( SELECT object_id FROM {$wpdb->term_relationships} WHERE $categories )";
             $dn = esc_sql($this->domain_name);
 
-            $sql = "SELECT pm.post_id AS id, p.post_type AS post_type FROM {$wpdb->postmeta} AS pm ";
-            $sql.= "JOIN {$wpdb->posts} AS p ON id = p.ID ";
+            $sql = "SELECT p.ID AS id, p.post_type AS post_type FROM {$wpdb->postmeta} AS pm ";
+            $sql.= "JOIN {$wpdb->posts} AS p ON pm.post_id = p.ID ";
             $sql.= "WHERE ";
             if ($categories && $post_types)
                 $sql.= "( $where_categories OR $post_types )";
@@ -183,7 +183,6 @@ class Domain_Name_Autoswitch {
                 $sql.= $post_types;
             $sql.= " AND pm.meta_key = '{$this->_field_ID}' AND pm.meta_value = '$dn'";
             $sql.= " AND p.post_status = 'publish' LIMIT 1";
-
             $row = $wpdb->get_row($sql);
             if (!empty($row) && !empty($row->id)) {
                 $this->post_ID = $row->id;
