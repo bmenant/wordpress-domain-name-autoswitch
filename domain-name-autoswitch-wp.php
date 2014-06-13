@@ -2,7 +2,7 @@
 /**
  ** Plugin Name: Domain Name Autoswitch
  ** Description: Display the setted post for setted domain name (require Advanced Custom Fields plugin).
- ** Version: 1.2.2
+ ** Version: 1.2.3
  ** Author: Benjamin Menant <dev@menant-benjamin.fr>
  ** Author URI: http://menant-benjamin.fr/
  ** License: WTFPL
