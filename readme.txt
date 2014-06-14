@@ -3,7 +3,7 @@ Contributors: bmenant
 Tags: Multi Domain Name, Front Page
 Requires at least: 3.5.x
 Tested up to: 3.9.1
-Stable tag: v1.2.3
+Stable tag: v1.2.4
 License: WTFPL
 License URI: http://www.wtfpl.net/
 
@@ -75,6 +75,10 @@ as published by Sam Hocevar. See (http://www.wtfpl.net/) for more details.
     your WordPress instance.
 
 == Changelog ==
+
+= 1.2.4 =
+
+* Fix the way settings are saved: from now, settings are not erased after upgrading the plugin.
 
 = 1.2.3 =
 
