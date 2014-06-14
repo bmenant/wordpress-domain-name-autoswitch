@@ -89,12 +89,35 @@ class Domain_Name_Autoswitch {
      * @return void
      */
     private function __construct () {
-        // Config file
+        // Setting up
+        $categories_ID = get_option('dnas_categories_ID', array(0));
+        $post_types_ID = get_option('dnas_post_types_ID', array(''));
+
         include_once(plugin_dir_path(__FILE__) . 'domain-name-autoswitch-config.php');
+        if (isset($dnas_categories_ID)
+        && is_array($dnas_categories_ID)
+        && !empty($dnas_categories_ID)) {
+            update_option('dnas_categories_ID', $dnas_categories_ID);
+            $categories_ID = $dnas_categories_ID;
+        }
+        if (isset($dnas_post_types_ID)
+        && is_array($dnas_post_types_ID)
+        && !empty($dnas_post_types_ID)) {
+            update_option('dnas_post_types_ID', $dnas_post_types_ID);
+            $post_types_ID = $dnas_post_types_ID;
+        }
+        if (empty($categories_ID) && empty($post_types_ID)){
+            $this->error_notice(__('Configuration file is missing.
+                You should rename the sample config file to:
+                <code>domain-name-autoswitch-config.php</code>.', 'dnas'));
+        }
+
+        // Check Dependencies.
+        add_action('admin_init', array($this, 'check_dependencies'));
 
         // Populate private properties
-        $this->_categories_ID = $dnas_categories_ID;
-        $this->_post_types_ID = $dnas_post_types_ID;
+        $this->_categories_ID = $categories_ID;
+        $this->_post_types_ID = $post_types_ID;
         $this->_field_ID = 'dnas-domain-name';
 
         // Get domain name request
@@ -114,6 +137,24 @@ class Domain_Name_Autoswitch {
 
         // Message error handler
         add_action('admin_notices', array($this, 'error_notice'));
+    }
+
+    /**
+     * Test Dependencies.
+     *
+     * @since   1.2.4
+     */
+    public function check_dependencies() {
+        $deactivate = false;
+        if (!function_exists('register_field_group')) {
+            $this->error_notice(__('<a href="http://www.advancedcustomfields.com/">Advanced Custom Fields</a>
+                is required and must be activated to manage domain names.', 'dnas'));
+            $deactivate = true;
+        }
+        if ($deactivate) {
+            $this->error_notice('The plugin has been deactivated.');
+            deactivate_plugins(plugin_basename(__FILE__));
+        }
     }
 
     /**
@@ -191,7 +232,8 @@ class Domain_Name_Autoswitch {
             }
         }
         elseif (is_admin()) {
-            $this->error_notice(__('Please check the plugin configuration file.', 'dnas'));
+            $this->error_notice(__('Please check the plugin configuration file
+                to set up at least one custom post type or one category id.', 'dnas'));
         }
         return false;
     }
@@ -302,9 +344,6 @@ class Domain_Name_Autoswitch {
             }
             register_field_group($custom_field);
         }
-        elseif (is_admin()) {
-            $this->error_notice(__('<a href="http://www.advancedcustomfields.com/">Advanced Custom Fields</a> is required and must be activated to manage domain names.', 'dnas'));
-        }
     }
 
     /**
@@ -315,6 +354,7 @@ class Domain_Name_Autoswitch {
         if(!isset($errors)) static $errors;
         if(!empty($msg)) $errors[] = $msg;
         elseif(!empty($errors)) {
+            $errors = array_unique($errors);
             echo '<div class="error"><h3>Domain Name Autoswitch plugin</h3><ul>';
             foreach ($errors as $e) {
                 echo "<li> $e </li>";
@@ -326,9 +366,7 @@ class Domain_Name_Autoswitch {
 
 // Initialize.
 function dnas() {
-    global $dnas;
-    $dnas = Domain_Name_Autoswitch::get_instance();
-    return $dnas;
+    return Domain_Name_Autoswitch::get_instance();
 }
 $dnas = dnas();
 
