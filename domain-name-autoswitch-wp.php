@@ -2,7 +2,7 @@
 /**
  ** Plugin Name: Domain Name Autoswitch
  ** Description: Display the post configured to be displayed given a domain name (require Advanced Custom Fields plugin).
- ** Version: 1.2.4
+ ** Version: 1.2.5
  ** Author: Benjamin Menant <dev@menant-benjamin.fr>
  ** Author URI: http://menant-benjamin.fr/
  ** License: WTFPL
@@ -134,6 +134,7 @@ class Domain_Name_Autoswitch {
         add_filter('pre_option_siteurl', array($this, 'baseurl_handler'));
         add_filter('post_type_link', array($this, 'permalink_handler'), 10, 2);
         add_filter('post_link', array($this, 'permalink_handler'), 10, 2);
+        add_filter('plugins_url', array($this, 'plugins_url_handler'), 10, 3);
 
         // Message error handler
         add_action('admin_notices', array($this, 'error_notice'));
@@ -258,6 +259,15 @@ class Domain_Name_Autoswitch {
         if ($this->get_post_ID() == $post->ID) {
             return "http://$this->domain_name/";
         }
+        return $url;
+    }
+
+    /**
+     * Change any plugins_url value with the correct one.
+     * @return  string  The filtered URL.
+     */
+    public function plugins_url_handler($url, $path = '', $plugin = '') {
+        $url = preg_replace('#://[^/]+#', "://$this->domain_name", $url);
         return $url;
     }
 
